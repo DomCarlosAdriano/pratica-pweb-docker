@@ -1,5 +1,13 @@
+import { Model } from 'sequelize';
+
 export default (sequelize, DataTypes) => {
-  const Task = sequelize.define('Task', {
+  class Task extends Model {
+    static associate(models) {
+      // Futuro: Task.belongsTo(models.User, { foreignKey: 'userId' });
+    }
+  }
+
+  Task.init({
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -13,6 +21,10 @@ export default (sequelize, DataTypes) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+  }, {
+    sequelize,
+    modelName: 'Task',
   });
+
   return Task;
 };

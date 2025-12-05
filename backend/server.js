@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bd from "./src/models/index.js";
 
+// Importações novas
+import AuthController from "./src/controllers/AuthController.js";
+import authMiddleware from "./src/middleware/auth.js";
+
 dotenv.config();
 
 const { Task } = bd;
@@ -26,7 +30,20 @@ app.get("/", (req, res) => {
   res.json({ message: "Hello World" });
 });
 
+// --- Rotas Públicas (Auth) ---
+app.post("/signin", AuthController.signin);
+app.post("/signup", AuthController.signup);
+
+// --- Rotas Privadas (Todas abaixo usam o middleware) ---
+app.use(authMiddleware);
+
+app.get("/profile", (req, res) => {
+  res.json({ message: "Perfil do usuário", userId: req.userId });
+});
+
 app.get("/tasks", async (req, res) => {
+  // Opcional: Filtrar tasks pelo usuário logado
+  // const tasks = await Task.findAll({ where: { userId: req.userId } });
   const tasks = await Task.findAll();
   res.json(tasks);
 });
@@ -34,6 +51,9 @@ app.get("/tasks", async (req, res) => {
 app.post("/tasks", async (req, res) => {
   const { description } = req.body;
   if (!description) return res.status(400).json({ error: "Descrição obrigatória" });
+  
+  // Opcional: Associar task ao usuário
+  // const task = await Task.create({ description, completed: false, userId: req.userId });
   const task = await Task.create({ description, completed: false });
   res.status(201).json(task);
 });
@@ -60,5 +80,7 @@ app.delete("/tasks/:id", async (req, res) => {
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
-  console.log(`Database is running on port ${process.env.DB_PORT}`);
+  // Ajuste: DB_PORT pode vir undefined se não estiver no .env do local, 
+  // mas dentro do container as variáveis do docker-compose funcionam.
+  console.log(`Database info available.`);
 });
