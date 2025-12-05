@@ -22,6 +22,21 @@ services:
       retries: 10
       start_period: 10s
 
+  # Redis para Cache (NOVO)
+  redis-pweb:
+    image: redis:alpine
+    container_name: redis-pweb
+    ports:
+      - "6379:6379"
+    networks:
+      - todo-pweb-network
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # Backend API
   backend-pweb:
     build:
@@ -31,15 +46,26 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Configuração DB
       DB_HOST: db-pweb
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: todolist
+      # Configuração Redis (NOVO)
+      REDIS_HOST: redis-pweb
+      REDIS_PORT: 6379
+      # Security & External Services (NOVO)
+      # Nota: Em produção, use um arquivo .env real
+      JWT_SECRET: chave_secreta_desenvolvimento
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
     ports:
       - "3000:3000"
     depends_on:
       db-pweb:
+        condition: service_healthy
+      redis-pweb:
         condition: service_healthy
     networks:
       - todo-pweb-network
