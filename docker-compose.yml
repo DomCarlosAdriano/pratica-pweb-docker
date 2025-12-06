@@ -55,8 +55,6 @@ services:
       # Configuração Redis (NOVO)
       REDIS_HOST: redis-pweb
       REDIS_PORT: 6379
-      # Security & External Services (NOVO)
-      # Nota: Em produção, use um arquivo .env real
       JWT_SECRET: chave_secreta_desenvolvimento
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}

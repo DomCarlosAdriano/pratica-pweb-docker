@@ -1,143 +1,125 @@
-# 🚀 Tutorial Auto-Guiado: Deploy de uma To-Do List com Docker e Compose (via Play with Docker)
+# 📝 Todo List API - Docker + Redis + Supabase
 
-## 🎯 Objetivo
-Aprender a executar uma aplicação **full stack (frontend + backend + banco)** usando apenas o navegador, através do **Play with Docker**, com uso de **Dockerfile** e **docker-compose**.
+Uma API robusta para gerenciamento de tarefas (Todo List) desenvolvida com Node.js, conteinerizada com Docker, otimizada com Redis para caching e integrada ao Supabase para armazenamento de arquivos.
 
----
+Este projeto demonstra a implementação de uma arquitetura escalável utilizando práticas modernas de desenvolvimento backend.
 
-## 🧱 0) Preparação do ambiente
-1. Acesse **https://labs.play-with-docker.com/**
-2. Clique em **“Start”** e depois em **“+ Add new instance”**
-3. Verifique o Docker:
-   ```bash
-   docker --version
-   ```
+## 🚀 Funcionalidades
 
----
+- **Autenticação JWT**: Registro e Login seguro com hash de senha (Bcrypt) e tokens de acesso (JWT).
 
-## 🧩 1) Clonar um repositório público
-```bash
-https://github.com/paulohenriq/pratica-pweb-docker
+- **CRUD de Tarefas**: Criação, leitura, atualização e remoção de tarefas.
+
+- **Cache Estratégico (Redis)**: Implementação do padrão Cache-Aside na listagem de tarefas para reduzir a carga no banco de dados.
+  - **Cache Hit**: Retorno instantâneo do Redis.
+  - **Cache Miss**: Busca no banco e atualização do cache.
+  - **Invalidação**: Limpeza automática do cache ao criar, editar ou excluir tarefas.
+
+- **Upload de Arquivos (Supabase)**: Upload de avatar do usuário via multipart/form-data, processamento em memória com Multer e envio para bucket no Supabase Storage.
+
+- **Infraestrutura Docker**: Ambiente completo (API, Banco, Cache, Frontend) orquestrado via Docker Compose.
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Backend**: Node.js, Express
+- **Banco de Dados**: PostgreSQL (via Sequelize ORM)
+- **Cache**: Redis
+- **Storage**: Supabase Storage
+- **Containerização**: Docker & Docker Compose
+- **Segurança**: Bcrypt.js, JsonWebToken (JWT)
+- **Outros**: Multer (Uploads), Dotenv
+
+## 📂 Arquitetura do Projeto
+
 ```
----
-
-### 2) Criar o `Dockerfile` do backend
-```Dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev || npm i --omit=dev
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
-```
-
----
-
-### 3) `Dockerfile` do frontend
-```Dockerfile
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci || npm i
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+backend/
+├── src/
+│   ├── config/         # Configurações (Redis, Supabase, Multer, Database)
+│   ├── controllers/    # Lógica das rotas (Auth, Task, Profile)
+│   ├── middleware/     # Interceptadores (Autenticação JWT)
+│   ├── migrations/     # Scripts de banco de dados (.cjs)
+│   ├── models/         # Modelos Sequelize (User, Task)
+│   └── ...
+├── server.js           # Ponto de entrada da API
+└── Dockerfile          # Configuração da imagem Docker
+docker-compose.yml      # Orquestração dos serviços
 ```
 
-### `nginx.conf`
-```nginx
-server {
-  listen 80;
-  root /usr/share/nginx/html;
-  index index.html;
+## ⚙️ Pré-requisitos
 
-  location /api/ {
-    proxy_pass http://backend:3000/;
-  }
+- Docker e Docker Compose instalados.
+- Uma conta no Supabase (para o bucket de imagens).
 
-  location / {
-    try_files $uri $uri/ /index.html;
-  }
-}
-```
+## 🚀 Como Rodar
 
----
+### 1. Configuração de Ambiente
 
-## 🐘 4) Criar o `docker-compose.yml`
+Certifique-se de que o arquivo `docker-compose.yml` (ou um arquivo `.env` na raiz) contenha as variáveis necessárias, especialmente as do Supabase:
 
 ```yaml
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: todos
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d todos"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  backend:
-    build: ./backend
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: todos
-      PORT: 3000
-    depends_on:
-      db:
-        condition: service_healthy
-
-  frontend:
-    build: ./frontend
-    depends_on:
-      - backend
-    ports:
-      - "80:80"
-
-volumes:
-  pgdata:
+# docker-compose.yml (trecho)
+environment:
+  SUPABASE_URL: "sua_url_do_projeto_supabase"
+  SUPABASE_KEY: "sua_chave_anon_publica"
+  JWT_SECRET: "sua_chave_secreta"
+  # ... configurações do Postgres e Redis
 ```
 
----
+### 2. Iniciar os Serviços
 
-## 🚀 5) Subir o ambiente
+Na raiz do projeto, execute:
 
 ```bash
-docker compose build
-docker compose up -d
-docker compose ps
+docker-compose up --build -d
 ```
 
-Depois clique em **OPEN PORT → 80** no topo do Play with Docker.  
-Você verá o **frontend da To-Do List** funcionando.
+Isso irá:
+- Construir as imagens do Backend e Frontend.
+- Baixar as imagens do Postgres e Redis.
+- Iniciar todos os containers em rede.
+- Rodar as migrations do banco de dados automaticamente.
+
+### 3. Verificar Logs
+
+Para garantir que o backend subiu corretamente e conectou aos serviços:
+
+```bash
+docker logs -f backend-pweb
+```
+
+**Esperado**: `Server is running on port 3000` e `Conectado ao Redis com sucesso!`.
+
+## 📡 Endpoints da API
+
+A API roda em `http://localhost:3000`.
+
+### Autenticação (Público)
+
+| Método | Rota | Descrição | Body (JSON) |
+|--------|------|-----------|-------------|
+| POST | `/signup` | Cria novo usuário | `{ "name": "...", "email": "...", "password": "..." }` |
+| POST | `/signin` | Login e gera Token | `{ "email": "...", "password": "..." }` |
+
+### Tarefas (Privado - Requer Header `Authorization: Bearer <TOKEN>`)
+
+| Método | Rota | Descrição | Body (JSON) |
+|--------|------|-----------|-------------|
+| GET | `/tasks` | Lista tarefas (Usa Cache) | - |
+| POST | `/tasks` | Cria tarefa (Limpa Cache) | `{ "description": "..." }` |
+| PUT | `/tasks/:id` | Atualiza tarefa | `{ "description": "...", "completed": true }` |
+| DELETE | `/tasks/:id` | Remove tarefa | - |
+
+### Perfil (Privado)
+
+| Método | Rota | Descrição | Formato |
+|--------|------|-----------|---------|
+| PATCH | `/profile/avatar` | Upload de foto de perfil | Multipart Form (Campo: `file`) |
+
+## 🧪 Testando o Cache (Redis)
+
+1. Faça um `GET /tasks`. Verifique os logs do container: 🐢 **Cache MISS** (Buscou no banco).
+2. Faça outro `GET /tasks` imediatamente. Verifique os logs: ⚡ **Cache HIT** (Retornou do Redis instantaneamente).
 
 ---
 
-## 🧠 6) Como os serviços se comunicam
-
-| Serviço | Porta interna | Função |
-|----------|---------------|--------|
-| `frontend` | 80 | Servido pelo Nginx e faz proxy para `/api` |
-| `backend` | 3000 | API Node.js + Express |
-| `db` | 5432 | Banco de dados PostgreSQL |
-
-Todos estão na mesma **network do compose**, usando **DNS interno**.
-
----
-
-## 🧾 Conclusão
-Parabéns! 🎉  
-Você acabou de subir uma aplicação completa **frontend + backend + banco de dados** apenas com **Docker e Compose**.
-
+**Desenvolvido para um projeto academico feito por @domcarlosadriano e meu amigo Mateus Victor.**
